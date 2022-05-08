@@ -67,12 +67,6 @@ private final class Buffer<T>: ManagedBuffer<Header, T> {
   }
 }
 
-private let emptyBuffer: Buffer<Void> = {
-  let r = Buffer<Void>.makeUninitialized(minimumCapacity: 0, isOccupied: .init())
-  r.fastCapacity = 0 // make sure we don't try to grow it.
-  return r
-}()
-
 public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
   private var storage: Buffer<T>
 
@@ -90,8 +84,7 @@ public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
   }
 
   public init() {
-//    storage = .makeUninitialized(minimumCapacity: 0, isOccupied: .init())
-    storage = unsafeBitCast(emptyBuffer, to: Buffer<T>.self)
+    storage = .makeUninitialized(minimumCapacity: 0, isOccupied: .init())
   }
 
   public subscript(i: Index) -> T? {
