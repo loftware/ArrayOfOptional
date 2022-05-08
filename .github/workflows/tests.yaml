@@ -1,0 +1,47 @@
+name: test
+
+on:
+    push:
+      branches: [main]
+    pull_request:
+
+jobs:
+
+    macOS-swift-56:
+        name: macOS
+        runs-on: macOS-latest
+        steps:
+        - name: Checkout
+          uses: actions/checkout@v1
+        - name: Xcode Version
+          run: |
+            xcodebuild -version
+            swift --version
+        - name: Swift Version
+          run: swift --version
+        - name: Build (Debug)
+          run: swift build -v -c debug
+        - name: Build (Release)
+          run: swift build -v -c release
+        - name: Test (Debug)
+          run: swift test -v --configuration debug --enable-test-discovery
+        - name: Test (Release)
+          run: swift test -v --configuration release -Xswiftc -enable-testing --enable-test-discovery
+
+    linux-swift-56:
+        name: Linux x86_64
+        runs-on: ubuntu-20.04
+        container: swift:5.5-focal
+        steps:
+        - name: Checkout
+          uses: actions/checkout@v1
+        - name: Swift Version
+          run: swift --version
+        - name: Build (Debug)
+          run: swift build -v -c debug --enable-test-discovery
+        - name: Build (Release)
+          run: swift build -v -c release --enable-test-discovery
+        - name: Test (Debug)
+          run: swift test -v --configuration debug --enable-test-discovery
+        - name: Test (Release)
+          run: swift test -v --configuration release -Xswiftc -enable-testing --enable-test-discovery
