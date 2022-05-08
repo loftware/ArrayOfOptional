@@ -1,24 +1,18 @@
 import LoftDataStructures_BitVector
 
-private extension Optional {
-  mutating func release() -> Wrapped {
-    defer { self = nil }
-    return self!
-  }
-
-  mutating func unsafeRelease() -> Wrapped {
-    defer { self = nil }
-    return unsafelyUnwrapped
-  }
-}
-
+/// Storage header for ArrayOfOptional buffers
 private struct Header {
+  /// Indication of whether each cell in the buffer is occupied, representing a non-nil T?.
   var isOccupied: BitVector
+
+  /// Capacity of T storage allocated to the buffer.
   var capacity: Int
 }
 
 // FIXME: This is suboptimal; there should be one buffer for the bits and the
 // Ts, all stored inline.
+
+/// Shared buffer type for ArrayOfOptional.
 private final class Buffer<T>: ManagedBuffer<Header, T> {
   deinit {
     withUnsafeMutablePointerToElements { p in
@@ -28,18 +22,15 @@ private final class Buffer<T>: ManagedBuffer<Header, T> {
     }
   }
 
+  /// Indication of whether each cell in `self` is occupied, representing a non-nil T?.
   var isOccupied: BitVector {
     set { header.isOccupied = newValue }
     _modify { yield &header.isOccupied }
     _read { yield header.isOccupied }
   }
 
-  var fastCapacity: Int {
-    set { header.capacity = newValue }
-    _modify { yield &header.capacity }
-    _read { yield header.capacity }
-  }
-
+  /// Returns a new instance of self with the same contents and storage for at
+  /// least `minimumCapacity ?? isOccupied.count` elements.
   func clone(minimumCapacity: Int? = nil) -> Self {
     let minimumCapacity = minimumCapacity ?? isOccupied.count
     let r = Self.makeUninitialized(minimumCapacity: minimumCapacity, isOccupied: isOccupied)
@@ -56,6 +47,8 @@ private final class Buffer<T>: ManagedBuffer<Header, T> {
     return r
   }
 
+  /// Returns a new instance of self with the given `isOccupied` value but no
+  /// initialized `T` instances.
   static func makeUninitialized(minimumCapacity: Int, isOccupied: BitVector) -> Self {
     Self.create(minimumCapacity: minimumCapacity) { (r: ManagedBuffer)->Header in
       let capacity: Int
@@ -67,14 +60,21 @@ private final class Buffer<T>: ManagedBuffer<Header, T> {
   }
 }
 
+/// A RandomAccessCollection of `T?`, efficiently stored to avoid fragmentation.
 public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
   private var storage: Buffer<T>
 
+  /// The position of the first element in `self`, or `endIndex` if there is no
+  /// such element.
   public var startIndex: Int { 0 }
+
+  /// The position one past the last element in `self`.
   public var endIndex: Int { isOccupied.count }
 
+  /// A position in self.
   public typealias Index = Int
 
+  /// An collection whose elements are `true` iff the corresponding element of `self` is non-`nil`.
   private var isOccupied: BitVector {
     _read { yield storage.header.isOccupied }
     _modify {
@@ -83,10 +83,12 @@ public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
     }
   }
 
+  /// Creates an empty instance
   public init() {
     storage = .makeUninitialized(minimumCapacity: 0, isOccupied: .init())
   }
 
+  /// Accesses the `i`th element.
   public subscript(i: Index) -> T? {
     get {
       if !isOccupied[i] { return nil }
@@ -113,22 +115,31 @@ public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
     }
   }
 
+  /// The number of elements that `self` can store without reallocation.
   public var capacity: Int {
     get { Swift.min(bufferCapacity, isOccupied.capacity) }
   }
 
+  /// The number of Ts storable directly in `storage`.
   private var bufferCapacity: Int {
     _read { yield storage.header.capacity }
   }
 
+  /// Ensures that `self` can store at least `newCapacity` elements without
+  /// reallocation.
   public mutating func reserveCapacity(_ newCapacity: Int) {
     if bufferCapacity < newCapacity {
       storage = storage.clone(minimumCapacity: newCapacity)
     }
+    isOccupied.reserveCapacity(newCapacity)
   }
 
+  /// Sets the `i`th element of `self` to `newValue`.
+  ///
+  /// - Precondition: `isKnownUniquelyReferenced(&storage)`.
   @inline(__always)
   private mutating func setElementFast(at i: Int, to newValue: T?) {
+    assert(isKnownUniquelyReferenced(&storage))
     if (newValue != nil) != isOccupied[i] {
       isOccupied[i].toggle()
     }
@@ -144,6 +155,7 @@ public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
     }
   }
 
+  /// Returns a copy of `self` having element `i` set to `newValue`.
   @inline(never)
   private func settingElement(at i: Index, to newValue: T?) -> Self {
     var r = self
@@ -152,6 +164,7 @@ public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
     return r
   }
 
+  /// Appends `x` to self.
   public mutating func append(_ x: T?) {
     if count == bufferCapacity || !isKnownUniquelyReferenced(&storage)  {
       storage = storage.clone(
@@ -165,6 +178,7 @@ public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
     isOccupied.append(x != nil)
   }
 
+  /// Creates a logical copy of the elements in `s`.
   public init<S: Sequence>(_ s: S) where S.Element == T? {
     self.init()
     self.reserveCapacity(s.underestimatedCount)
@@ -173,6 +187,7 @@ public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
 }
 
 extension ArrayOfOptional: Equatable where T: Equatable {
+  /// Returns `true` iff `lhs` and `rhs` have equal elements.
   public static func == (lhs: Self, rhs: Self) -> Bool { lhs.elementsEqual(rhs) }
 }
 
