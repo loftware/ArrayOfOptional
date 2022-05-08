@@ -168,7 +168,7 @@ public struct ArrayOfOptional<T>: RandomAccessCollection, MutableCollection {
   public mutating func append(_ x: T?) {
     if count == bufferCapacity || !isKnownUniquelyReferenced(&storage)  {
       storage = storage.clone(
-        minimumCapacity: count == bufferCapacity ? 2 * bufferCapacity : capacity)
+        minimumCapacity: count == 0 ? 1 : count == bufferCapacity ? 2 * bufferCapacity : capacity)
     }
     if x != nil {
       storage.withUnsafeMutablePointerToElements { p in
