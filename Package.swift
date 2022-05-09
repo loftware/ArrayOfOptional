@@ -1,7 +1,6 @@
 // swift-tools-version:5.5
 import PackageDescription
 
-let auxilliaryFiles = ["README.md", "LICENSE"]
 let package = Package(
   name: "LoftDataStructures_ArrayOfOptional",
   products: [
@@ -24,10 +23,8 @@ let package = Package(
       name: "LoftDataStructures_ArrayOfOptional",
       dependencies: [
         .product(name: "LoftDataStructures_BitVector", package: "BitVector"),
-      ],
-      path: ".",
-      exclude: auxilliaryFiles + ["Tests.swift"],
-      sources: ["ArrayOfOptional.swift"]),
+      ]
+    ),
 
     .testTarget(
       name: "Test",
@@ -35,10 +32,7 @@ let package = Package(
         "LoftDataStructures_ArrayOfOptional",
         .product(name: "LoftTest_StandardLibraryProtocolChecks",
                  package: "StandardLibraryProtocolChecks"),
-      ],
-      path: ".",
-      exclude: auxilliaryFiles + ["ArrayOfOptional.swift"],
-      sources: ["Tests.swift"]
+      ]
     ),
   ]
 )
